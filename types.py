@@ -20,17 +20,37 @@ class PowerSource:
     def total_energy_used(self):
         return sum(self.schedule)
 
-class PowerSink:
-    def __init__(self, name, base_load_w, schedule=None, location=None):
+class LoadComponent:
+    def __init__(self, name, power_w, duty_cycle=None):
         self.name = name
-        self.base_load_w = base_load_w
-        self.location = location  # (x, y) coordinate
-
-        # load schedule: 24-element array, overrides base load if provided
-        if schedule is None:
-            self.schedule = [base_load_w] * 24
+        self.power_w = power_w
+        
+        # If no schedule, assume always on
+        if duty_cycle is None:
+            self.duty_cycle = [1.0] * 24  # 100% on
         else:
-            self.schedule = schedule
+            self.duty_cycle = duty_cycle  # list of floats [0.0–1.0], 24 elements
+
+    def power_at_hour(self, hour):
+        return self.power_w * self.duty_cycle[hour]
+
+
+
+class PowerSink:
+    def __init__(self, name, components=None, location=None):
+        self.name = name
+        self.components = components or []  # list of LoadComponent
+        self.location = location
+
+    def total_power_at_hour(self, hour):
+        return sum(comp.power_at_hour(hour) for comp in self.components)
+
+    def schedule(self):
+        """Return a 24-element list of total power draw per hour"""
+        return [self.total_power_at_hour(h) for h in range(24)]
+
+    def add_component(self, component):
+        self.components.append(component)
 
 class FieldDaySite:
     def __init__(self):
